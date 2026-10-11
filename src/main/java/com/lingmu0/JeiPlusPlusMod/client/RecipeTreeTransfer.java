@@ -1418,7 +1418,7 @@ public final class RecipeTreeTransfer {
                         // Preserve FluidStack ingredients for custom tank
                         // handlers and add matching filled containers for
                         // handlers that expose an item input slot instead.
-                        Optional<net.minecraftforge.fluids.FluidStack> fluid =
+                        Optional<FabricFluidStack> fluid =
                             FluidRecipeCompat.fluid(ingredient);
                         if (fluid.isPresent()) {
                             String fluidKey = FluidRecipeCompat.fluidKey(fluid.get());

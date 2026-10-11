@@ -1,0 +1,109 @@
+import groovy.json.JsonSlurper
+import org.objectweb.asm.ClassReader
+import org.objectweb.asm.Type
+import org.objectweb.asm.tree.ClassNode
+import java.util.zip.ZipFile
+
+buildscript {
+    repositories { mavenCentral() }
+    dependencies { classpath 'org.ow2.asm:asm-tree:9.9.1' }
+}
+
+// No Minecraft launch: verify metadata, sidedness, bytecode and required JEI mixin targets.
+tasks.register('verifyFabricJar') {
+    dependsOn tasks.named(project.minecraft_version == '26.1.2' ? 'jar' : 'remapJar')
+    doLast {
+        def artifact = tasks.named(project.minecraft_version == '26.1.2' ? 'jar' : 'remapJar').get().archiveFile.get().asFile
+        new ZipFile(artifact).withCloseable { archive ->
+            def json = new JsonSlurper()
+            def metadata = json.parse(archive.getInputStream(archive.getEntry('fabric.mod.json')))
+            assert metadata.id == 'jei_plus_plus'
+            assert metadata.version == project.version.toString()
+            assert metadata.environment == '*'
+            assert metadata.depends.minecraft == project.minecraft_version
+            assert metadata.depends['fabric-api']
+            assert !metadata.depends.jei : 'JEI must not become a mandatory dedicated-server dependency'
+            assert !archive.getEntry('META-INF/mods.toml')
+            assert !archive.getEntry('META-INF/neoforge.mods.toml')
+            metadata.entrypoints.values().flatten().each { entrypoint ->
+                assert archive.getEntry(entrypoint.replace('.', '/') + '.class') : entrypoint
+            }
+            def mixins = json.parse(archive.getInputStream(archive.getEntry('jei_plus_plus.mixins.json')))
+            assert mixins.mixins.empty
+            assert metadata.mixins.every { it.environment == 'client' }
+            mixins.client.each { name ->
+                assert archive.getEntry(mixins.package.replace('.', '/') + '/' + name + '.class') : name
+            }
+            if (project.minecraft_version != '26.1.2') {
+                assert archive.getEntry(mixins.refmap) : 'Missing production refmap'
+            }
+            int expectedMajor = project.minecraft_version == '1.20.1' ? 61 : project.minecraft_version == '1.21.1' ? 65 : 69
+            int count = 0
+            archive.entries().findAll { it.name.endsWith('.class') }.each { entry ->
+                byte[] bytes = archive.getInputStream(entry).bytes
+                int major = ((bytes[6] & 255) << 8) | (bytes[7] & 255)
+                assert major == expectedMajor : entry.name
+                String constants = new String(bytes, java.nio.charset.StandardCharsets.ISO_8859_1)
+                assert !constants.contains('net/minecraftforge/') && !constants.contains('net/neoforged/') : entry.name
+                String simpleName = entry.name.tokenize('/').last()
+                if (simpleName == 'JeiPlusPlus.class' || simpleName.startsWith('Ae2PatternNetwork')
+                        || simpleName == 'Ae2PatternServer.class' || simpleName == 'Ae2PatternPlan.class') {
+                    assert !constants.contains('net/minecraft/client/') && !constants.contains('mezz/jei/')
+                        && !constants.contains('JeiPlusPlusMod/client/') : 'Client link in server code: ' + entry.name
+                }
+                count++
+            }
+            logger.lifecycle("Verified Fabric release JAR: ${artifact.name} (${count} classes)")
+        }
+
+        def readClass = { byte[] bytes ->
+            def node = new ClassNode()
+            new ClassReader(bytes).accept(node, ClassReader.SKIP_CODE | ClassReader.SKIP_DEBUG | ClassReader.SKIP_FRAMES)
+            node
+        }
+        def targets = [:]
+        configurations.compileClasspath.files.findAll { it.name.endsWith('.jar') }.each { file ->
+            new ZipFile(file).withCloseable { archive ->
+                archive.entries().findAll { it.name.startsWith('mezz/jei/') && it.name.endsWith('.class') }.each { entry ->
+                    targets[entry.name - '.class'] = readClass(archive.getInputStream(entry).bytes)
+                }
+            }
+        }
+        def annotationValues = { annotation ->
+            def values = [:]
+            if (annotation?.values) for (int index = 0; index < annotation.values.size(); index += 2)
+                values[annotation.values[index]] = annotation.values[index + 1]
+            values
+        }
+        int injections = 0
+        sourceSets.main.output.classesDirs.files.each { directory ->
+            fileTree(directory).matching { include '**/mixin/*.class' }.files.each { file ->
+                def mixin = readClass(file.bytes)
+                def annotations = (mixin.visibleAnnotations ?: []) + (mixin.invisibleAnnotations ?: [])
+                def declaration = annotationValues(annotations.find { it.desc == 'Lorg/spongepowered/asm/mixin/Mixin;' })
+                def names = (declaration.value ?: []).collect { ((Type) it).internalName } + (declaration.targets ?: []).collect { it.replace('.', '/') }
+                names.findAll { it.startsWith('mezz/jei/') && targets.containsKey(it) }.each { name ->
+                    def target = targets[name]
+                    mixin.methods.each { method ->
+                        def methodAnnotations = (method.visibleAnnotations ?: []) + (method.invisibleAnnotations ?: [])
+                        methodAnnotations.findAll { it.desc == 'Lorg/spongepowered/asm/mixin/injection/Inject;' }.each { annotation ->
+                            def values = annotationValues(annotation)
+                            if (values.require != 0) {
+                                assert values.method.any { selector ->
+                                    int bracket = selector.indexOf('(')
+                                    String methodName = bracket < 0 ? selector : selector.substring(0, bracket)
+                                    String descriptor = bracket < 0 ? null : selector.substring(bracket)
+                                    target.methods.any { it.name == methodName && (descriptor == null || it.desc == descriptor) }
+                                } : "Required JEI injection missing: ${mixin.name} -> ${name} ${values.method}"
+                                injections++
+                            }
+                        }
+                    }
+                }
+            }
+        }
+        assert injections > 0
+        logger.lifecycle("Verified ${injections} required JEI injection targets against the Fabric dependency")
+    }
+}
+tasks.named('check') { dependsOn tasks.named('verifyFabricJar'), tasks.named('testFabricConfig') }

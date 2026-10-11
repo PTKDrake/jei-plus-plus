@@ -23,7 +23,7 @@ public abstract class RecipesGuiMixin {
      * development method and its runtime name so a production client does
      * not fail mixin validation when one of them is absent.
      */
-    @Inject(method = {"mouseClicked", "m_6375_"}, at = @At("HEAD"), cancellable = true, remap = false, require = 0)
+    @Inject(method = {"mouseClicked", "method_25402"}, at = @At("HEAD"), cancellable = true, remap = false, require = 1)
     private void jeiPlusPlus$clickRecipeTreeButton(double mouseX, double mouseY, int button, CallbackInfoReturnable<Boolean> cir) {
         if (com.lingmu0.JeiPlusPlusMod.client.RecipeTreeOverlay.click(
             ((RecipesGuiAccessor) this).jeiPlusPlus$getLayouts(), mouseX, mouseY, button)) {
@@ -31,7 +31,7 @@ public abstract class RecipesGuiMixin {
         }
     }
 
-    @Inject(method = {"mouseScrolled", "m_6050_"}, at = @At("HEAD"), cancellable = true, remap = false, require = 0)
+    @Inject(method = {"mouseScrolled", "method_25401"}, at = @At("HEAD"), cancellable = true, remap = false, require = 1)
     private void jeiPlusPlus$scrollNavigation(
         double mouseX,
         double mouseY,

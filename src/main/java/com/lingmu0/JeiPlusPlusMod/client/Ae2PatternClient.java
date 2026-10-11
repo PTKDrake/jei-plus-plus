@@ -2,6 +2,8 @@ package com.lingmu0.JeiPlusPlusMod.client;
 
 import com.lingmu0.JeiPlusPlusMod.Ae2PatternNetwork;
 import com.lingmu0.JeiPlusPlusMod.Ae2PatternPlan;
+import net.fabricmc.fabric.api.client.networking.v1.ClientPlayNetworking;
+import net.fabricmc.fabric.api.networking.v1.PacketByteBufs;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.network.chat.Component;
@@ -22,8 +24,7 @@ public final class Ae2PatternClient {
         if (!Screen.hasShiftDown() && !Screen.hasControlDown()) return false;
         var minecraft = Minecraft.getInstance();
         if (minecraft.player == null || minecraft.player.containerMenu == null) return false;
-        if (!Ae2PatternNetwork.available(minecraft.getConnection() == null
-                ? null : minecraft.getConnection().getConnection())) {
+        if (!ClientPlayNetworking.canSend(Ae2PatternNetwork.CHANNEL)) {
             minecraft.player.displayClientMessage(Component.translatable("jei_plus_plus.ae2.server_required"), true);
             return true;
         }
@@ -39,8 +40,19 @@ public final class Ae2PatternClient {
             minecraft.player.displayClientMessage(Component.translatable("jei_plus_plus.ae2.no_patterns"), true);
             return true;
         }
-        Ae2PatternNetwork.send(plans, Screen.hasControlDown(), minecraft.player.containerMenu.containerId);
+        send(plans, Screen.hasControlDown(), minecraft.player.containerMenu.containerId);
         return true;
+    }
+
+    private static void send(List<Ae2PatternPlan> plans, boolean force, int menuId) {
+        int batch = java.util.concurrent.ThreadLocalRandom.current().nextInt();
+        int count = (plans.size() + 7) / 8;
+        for (int i = 0; i < count; i++) {
+            var buffer = PacketByteBufs.create();
+            new Ae2PatternNetwork.Request(menuId, batch, i, count, force,
+                List.copyOf(plans.subList(i * 8, Math.min(plans.size(), (i + 1) * 8)))).write(buffer);
+            ClientPlayNetworking.send(Ae2PatternNetwork.CHANNEL, buffer);
+        }
     }
 
     private static void collect(RecipeTreeData.Node node, List<Ae2PatternPlan> plans, Set<String> seen) {

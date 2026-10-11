@@ -1,52 +1,33 @@
 package com.lingmu0.JeiPlusPlusMod;
 
-import net.minecraft.network.Connection;
 import net.minecraft.network.FriendlyByteBuf;
 import net.minecraft.resources.ResourceLocation;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.item.ItemStack;
-import net.minecraftforge.network.NetworkDirection;
-import net.minecraftforge.network.NetworkRegistry;
-import net.minecraftforge.network.simple.SimpleChannel;
+
+import net.fabricmc.fabric.api.networking.v1.ServerPlayNetworking;
+import net.fabricmc.fabric.api.networking.v1.ServerPlayConnectionEvents;
 
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
-import java.util.concurrent.ThreadLocalRandom;
 
-/** Optional Forge play channel; older client-only JEI++ functionality stays independent. */
+/** Optional Fabric play channel; client-only features do not depend on the server installing JEI++. */
 public final class Ae2PatternNetwork {
-    private static final SimpleChannel CHANNEL = NetworkRegistry.newSimpleChannel(
-            new ResourceLocation(JeiPlusPlus.MODID, "ae2_patterns"), () -> "1",
-            NetworkRegistry.acceptMissingOr("1"), NetworkRegistry.acceptMissingOr("1"));
+    public static final ResourceLocation CHANNEL = new ResourceLocation(JeiPlusPlus.MODID, "ae2_patterns");
     private static final Map<UUID, Pending> PENDING = new HashMap<>();
     private static final int CHUNK_SIZE = 8;
 
     private Ae2PatternNetwork() {}
 
     public static void register() {
-        CHANNEL.messageBuilder(Request.class, 0, NetworkDirection.PLAY_TO_SERVER)
-                .encoder(Request::write).decoder(Request::read)
-                .consumerMainThread((request, supplier) -> {
-                    ServerPlayer player = supplier.get().getSender();
-                    if (player != null) receive(player, request);
-                    supplier.get().setPacketHandled(true);
-                }).add();
-    }
-
-    public static boolean available(Connection connection) {
-        return connection != null && CHANNEL.isRemotePresent(connection);
-    }
-
-    public static void send(List<Ae2PatternPlan> plans, boolean force, int menuId) {
-        int batch = ThreadLocalRandom.current().nextInt();
-        int count = (plans.size() + CHUNK_SIZE - 1) / CHUNK_SIZE;
-        for (int i = 0; i < count; i++) {
-            CHANNEL.sendToServer(new Request(menuId, batch, i, count, force,
-                    List.copyOf(plans.subList(i * CHUNK_SIZE, Math.min(plans.size(), (i + 1) * CHUNK_SIZE)))));
-        }
+        ServerPlayNetworking.registerGlobalReceiver(CHANNEL, (server, player, handler, buffer, sender) -> {
+            Request request = Request.read(buffer);
+            server.execute(() -> receive(player, request));
+        });
+        ServerPlayConnectionEvents.DISCONNECT.register((handler, server) -> PENDING.remove(handler.player.getUUID()));
     }
 
     private static void receive(ServerPlayer player, Request request) {
@@ -86,7 +67,7 @@ public final class Ae2PatternNetwork {
 
     public record Request(int menuId, int batch, int index, int total, boolean force,
                           List<Ae2PatternPlan> plans) {
-        private void write(FriendlyByteBuf buffer) {
+        public void write(FriendlyByteBuf buffer) {
             buffer.writeVarInt(menuId);
             buffer.writeInt(batch);
             buffer.writeVarInt(index);

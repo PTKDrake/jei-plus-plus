@@ -1061,7 +1061,7 @@ public final class RecipeTreeData {
         }
 
         IRecipeManager manager = runtime.getRecipeManager();
-        Optional<IFocus<net.minecraftforge.fluids.FluidStack>> fluidFocus = FluidRecipeCompat.createOutputFocus(runtime, target);
+        var fluidFocus = FluidRecipeCompat.createOutputFocus(runtime, target);
         Optional<IFocus<ItemStack>> itemFocus = fluidFocus.isPresent() ? Optional.empty() : createOutputFocus(runtime, target);
         IFocus<?> focus = fluidFocus.isPresent() ? fluidFocus.get() : itemFocus.orElse(null);
         if (focus == null) {

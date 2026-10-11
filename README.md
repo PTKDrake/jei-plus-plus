@@ -1,6 +1,20 @@
 # JEI++
 
-JEI++ 是一个仅客户端运行的 JEI 附属模组，为 JEI 增加配方目录、配方树、制作助手、流体支持、存储网络库存读取、创造物品分类栏和可折叠物品分组。它不添加方块、物品、配方或其他游戏内容。
+JEI++ 是一个客户端必需、服务端可选的 JEI 附属模组。仅客户端安装即可使用大部分功能；服务端也安装后可使用配方树一键制作 AE2 样板。它为 JEI 增加配方目录、配方树、制作助手、流体支持、存储网络库存读取、创造物品分类栏和可折叠物品分组。它不添加方块、物品、配方或其他游戏内容。
+
+## Fabric 移植 / Fabric port
+
+本分支为 Minecraft **1.20.1 Fabric**，版本 **1.0.7-1.20.1-fabric**。安装 Fabric Loader 0.19.5 或更新版本、对应 Minecraft 的 Fabric API，以及客户端 JEI。游戏需要 Java 17；构建源码统一使用 JDK 25。
+
+This branch targets **Minecraft 1.20.1 Fabric**, version **1.0.7-1.20.1-fabric**. Install Fabric Loader 0.19.5+, the matching Fabric API, and JEI on the client. The game requires Java 17; building from source uses JDK 25.
+
+- 三个 Fabric 分支：`codex/fabric-1.20.1`、`codex/fabric-1.21.1`、`codex/fabric-26.1.2`。
+- 配方树、目录、书签、物品分组、分类弹窗、高亮与自动合成保留；第三方集成仅在对应模组提供兼容 Fabric 构建时可用，不能使用 Forge/NeoForge JAR。
+- Fabric 原生客户端配置：`config/jei_plus_plus-client.json`，支持热重载；原有分组 JSON、默认配方与配方树存储路径不变。旧 TOML 不会被删除，但不会由 Fabric 读取。
+- AE2 批量样板需要服务端安装同版本 JEI++；未安装时显示不可用提示，不影响其他客户端功能。AE2 的 Fabric 1.20.1（15.4.11）已用于静态接口核对。
+- Build with `./gradlew build`; release JARs are in `build/libs/`. The build includes headless configuration regression checks and release-JAR/Mixin validation, without launching Minecraft.
+
+Optional integrations require a compatible Fabric release of the target mod. AE2 bulk patterns require JEI++ on the server; all other client features remain independent. AE2 Fabric 1.20.1 (15.4.11) was used for static API checks. See the [official AE2 downloads](https://appliedenergistics.org/download). Fabric settings use `config/jei_plus_plus-client.json` with live reload. Existing group JSON, defaults and recipe-tree persistence paths are unchanged; old TOML files are preserved but are not read by Fabric.
 
 ## 中文说明
 
@@ -70,7 +84,7 @@ AE2 样板终端“制作样板”按钮：Shift+左键按当前配方树自底�
 
 ## 配置
 
-客户端配置文件：`config/jei_plus_plus-client.toml`
+客户端配置文件：`config/jei_plus_plus-client.json`
 
 | 配置项 | 默认值 | 作用 |
 | --- | --- | --- |
@@ -125,7 +139,7 @@ JSON 分组示例：
 
 | 游戏版本 | 加载器 | Java | JEI 开发依赖 | 模组版本 |
 | --- | --- | --- | --- | --- |
-| 1.20.1 | Forge 47.4.22 | 17 | JEI 15.59.0.210 | 1.0.7-1.20.1 |
+| 1.20.1 | Fabric Loader 0.19.5+ | 17 | JEI 15.59.0.210 | 1.0.7-1.20.1-fabric |
 
 声明的 JEI 兼容范围从 15.19.5.99 起，表中版本是当前开发依赖。
 
@@ -133,7 +147,7 @@ JEI 是可选客户端依赖；服务端不需要安装 JEI++，模组不提供�
 
 ## English
 
-JEI++ is a client-only JEI addon. It adds no blocks, items, recipes, or other gameplay content.
+JEI++ is required on the client and optional on the server. Most features work with only the client installed; installing it on the server as well enables one-click creation of AE2 patterns from the recipe tree.
 
 ### Directories, bookmarks, and defaults
 
@@ -159,14 +173,14 @@ Optional reflective client integrations support AE2, Refined Storage RS1/RS2, Be
 
 The creative tab bar provides all-items and creative categories with wrapping pages. Right-click opens a four-column picker; left-click selects a category and right-click pins or unpins it. Pinned categories appear first, and `creativeTabPageNumberEnabled` controls the page indicator. The item-directory behavior for multi-candidate recipe slots can be toggled with `recipeIngredientDirectoryEnabled`. Built-in expandable groups cover common material and tool families, NBT/component variants such as potions and enchanted books, and configurable item/tag/regex JSON groups. Every default group has its own switch; `mixNamespaceGroups` controls namespace mixing. JEI++ disables its grouping transform when another grouping addon is present.
 
-Candidate, per-recipe snapshot, recipe-status, layout, inventory/network, and fluid caches reduce repeated scans; items in the open container count toward recipe-tree inventory and highlighting. Recursive searches are bounded. Multiple JEI paths are supported on Forge 1.20.1, and optional integrations fail safely on missing mods or changed APIs.
+Candidate, per-recipe snapshot, recipe-status, layout, inventory/network, and fluid caches reduce repeated scans; items in the open container count toward recipe-tree inventory and highlighting. Recursive searches are bounded. Multiple JEI paths are supported on Fabric 1.20.1, and optional integrations fail safely on missing mods or changed APIs.
 
 ### Version and dependency
 
 | Minecraft | Loader | Java | JEI development dependency | Mod version |
 | --- | --- | --- | --- | --- |
-| 1.20.1 | Forge 47.4.22 | 17 | JEI 15.59.0.210 | 1.0.7-1.20.1 |
+| 1.20.1 | Fabric Loader 0.19.5+ | 17 | JEI 15.59.0.210 | 1.0.7-1.20.1-fabric |
 
 The declared JEI compatibility floor is 15.19.5.99; the table lists the current development dependency.
 
-JEI is an optional client dependency. JEI++ does not require installation on a server.
+Install JEI on the client. Server installation of JEI++ is optional, except for recipe-tree AE2 pattern creation. Fabric API is required on every side that loads JEI++.

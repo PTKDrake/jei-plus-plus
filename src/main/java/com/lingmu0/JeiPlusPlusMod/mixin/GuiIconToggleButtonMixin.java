@@ -29,7 +29,8 @@ public abstract class GuiIconToggleButtonMixin {
         }
     }
 
-    @Inject(method = "updateBounds(Lnet/minecraft/client/renderer/Rect2i;)V", at = @At("HEAD"), cancellable = true, remap = false)
+    @Inject(method = {"updateBounds(Lnet/minecraft/client/renderer/Rect2i;)V",
+        "updateBounds(Lnet/minecraft/class_768;)V"}, at = @At("HEAD"), cancellable = true, remap = false, require = 0)
     private void jeiPlusPlus$hideRecipeBookmarkRectBounds(Rect2i ignored, CallbackInfo ci) {
         if (jeiPlusPlus$isRecipeBookmark()) {
             button.updateBounds(ImmutableRect2i.EMPTY);

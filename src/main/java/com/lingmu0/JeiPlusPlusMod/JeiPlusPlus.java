@@ -1,17 +1,13 @@
 package com.lingmu0.JeiPlusPlusMod;
 
-import net.minecraftforge.fml.common.Mod;
+import net.fabricmc.api.ModInitializer;
 
-/**
- * Most JEI++ features remain client-only. The optional AE2 pattern action
- * uses a common play channel but this entry point has no client-only links.
- */
-@Mod(JeiPlusPlus.MODID)
-public final class JeiPlusPlus {
+/** Common entry point, safe to load without JEI or any client classes. */
+public final class JeiPlusPlus implements ModInitializer {
     public static final String MODID = "jei_plus_plus";
 
-    public JeiPlusPlus() {
-        JeiPlusPlusConfig.register();
+    @Override
+    public void onInitialize() {
         Ae2PatternNetwork.register();
     }
 }

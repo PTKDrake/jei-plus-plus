@@ -1,6 +1,6 @@
 package com.lingmu0.JeiPlusPlusMod;
 
-import net.minecraftforge.fml.ModList;
+import net.fabricmc.loader.api.FabricLoader;
 
 import java.util.Locale;
 import java.util.Set;
@@ -25,16 +25,16 @@ final class ExternalGroupingCompat {
     }
 
     private static boolean detectGroupingMod() {
-        ModList modList = ModList.get();
+        FabricLoader modList = FabricLoader.getInstance();
         for (String modId : KNOWN_MOD_IDS) {
-            if (modList.isLoaded(modId)) {
+            if (modList.isModLoaded(modId)) {
                 return true;
             }
         }
         // Keep compatibility with renamed builds whose visible name remains
         // JEI Tag Groups, JEI Groups, or Collapsible Groups.
-        return modList.getMods().stream()
-            .map(info -> normalize(info.getDisplayName()))
+        return modList.getAllMods().stream()
+            .map(info -> normalize(info.getMetadata().getName()))
             .anyMatch(name -> name.equals("jeitaggroups")
                 || name.equals("jeigroups")
                 || name.equals("collapsiblegroups")

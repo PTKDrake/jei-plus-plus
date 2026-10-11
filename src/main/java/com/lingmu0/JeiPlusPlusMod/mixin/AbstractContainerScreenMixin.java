@@ -109,8 +109,8 @@ public abstract class AbstractContainerScreenMixin {
             // the container.  Unlike renderSlot(), the slot coordinates are
             // therefore relative to the container and must be translated to
             // the screen's GUI origin before drawing the overlay.
-            int x = screen.getGuiLeft() + slot.x;
-            int y = screen.getGuiTop() + slot.y;
+            int x = ((ContainerScreenAccessor) screen).jeiPlusPlus$getLeftPos() + slot.x;
+            int y = ((ContainerScreenAccessor) screen).jeiPlusPlus$getTopPos() + slot.y;
             graphics.pose().pushPose();
             graphics.pose().translate(0, 0, 300);
             graphics.fill(x, y, x + 16, y + 16, fill);

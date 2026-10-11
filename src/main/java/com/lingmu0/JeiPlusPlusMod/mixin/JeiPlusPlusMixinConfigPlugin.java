@@ -1,7 +1,6 @@
 package com.lingmu0.JeiPlusPlusMod.mixin;
 
-import net.minecraftforge.fml.loading.FMLLoader;
-import net.minecraftforge.fml.loading.moddiscovery.ModFileInfo;
+import net.fabricmc.loader.api.FabricLoader;
 import org.objectweb.asm.tree.ClassNode;
 import org.spongepowered.asm.mixin.extensibility.IMixinConfigPlugin;
 import org.spongepowered.asm.mixin.extensibility.IMixinInfo;
@@ -80,7 +79,7 @@ public final class JeiPlusPlusMixinConfigPlugin implements IMixinConfigPlugin {
                 : LookupSignature.LEGACY;
         }
 
-        // Keep the feature safe if Forge's loading list is not ready yet.
+        // Fall back to the available JEI classes if version metadata is unavailable.
         if (classExists("mezz.jei.common.transfer.RecipeTransferService")) {
             return LookupSignature.SERVICE;
         }
@@ -91,12 +90,8 @@ public final class JeiPlusPlusMixinConfigPlugin implements IMixinConfigPlugin {
     }
 
     private static String findJeiVersion() {
-        try {
-            ModFileInfo jei = FMLLoader.getLoadingModList().getModFileById(JEI_MOD_ID);
-            return jei == null ? null : jei.versionString();
-        } catch (Throwable ignored) {
-            return null;
-        }
+        return FabricLoader.getInstance().getModContainer(JEI_MOD_ID)
+            .map(mod -> mod.getMetadata().getVersion().getFriendlyString()).orElse(null);
     }
 
     private static boolean classExists(String className) {
