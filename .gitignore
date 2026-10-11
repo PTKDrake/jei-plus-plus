@@ -32,3 +32,8 @@ runs/
 
 # Local JDK and build prerequisites for newer Minecraft versions
 .local-tools/
+
+# Local Fabric build tools, worktrees and runtime logs
+.local-tools/
+.codex-worktree-*/
+logs/

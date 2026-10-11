@@ -2,12 +2,12 @@ package com.lingmu0.JeiPlusPlusMod.client;
 
 import com.lingmu0.JeiPlusPlusMod.Ae2PatternNetwork;
 import com.lingmu0.JeiPlusPlusMod.Ae2PatternPlan;
+import net.fabricmc.fabric.api.client.networking.v1.ClientPlayNetworking;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.network.chat.Component;
 import net.minecraft.resources.Identifier;
 import net.minecraft.world.item.ItemStack;
-import net.neoforged.neoforge.client.network.ClientPacketDistributor;
 
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -25,8 +25,7 @@ public final class Ae2PatternClient {
         if (!Minecraft.getInstance().hasShiftDown() && !Minecraft.getInstance().hasControlDown()) return false;
         var minecraft = Minecraft.getInstance();
         if (minecraft.player == null || minecraft.player.containerMenu == null) return false;
-        if (!Ae2PatternNetwork.available(minecraft.getConnection() == null
-                ? null : minecraft.getConnection().getConnection())) {
+        if (!ClientPlayNetworking.canSend(Ae2PatternNetwork.Request.TYPE)) {
             minecraft.player.sendOverlayMessage(Component.translatable("jei_plus_plus.ae2.server_required"));
             return true;
         }
@@ -50,7 +49,7 @@ public final class Ae2PatternClient {
         int batch = ThreadLocalRandom.current().nextInt();
         int count = (plans.size() + CHUNK_SIZE - 1) / CHUNK_SIZE;
         for (int i = 0; i < count; i++) {
-            ClientPacketDistributor.sendToServer(new Ae2PatternNetwork.Request(
+            ClientPlayNetworking.send(new Ae2PatternNetwork.Request(
                 menuId, batch, i, count, force,
                 List.copyOf(plans.subList(i * CHUNK_SIZE, Math.min(plans.size(), (i + 1) * CHUNK_SIZE)))));
         }

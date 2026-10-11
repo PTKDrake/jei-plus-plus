@@ -1,5 +1,7 @@
 package com.lingmu0.JeiPlusPlusMod.client;
 
+import com.lingmu0.JeiPlusPlusMod.mixin.ContainerScreenAccessor;
+
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.GuiGraphicsExtractor;
 import net.minecraft.client.renderer.Rect2i;
@@ -1413,8 +1415,8 @@ final class StorageNetworkIntegration {
         int start = rowOffset * 9;
         for (int local = 0; local < rows * 9 && start + local < list.size(); local++) {
             ItemStack stack = rs1EntryStack(list.get(start + local));
-            int x = screen.getGuiLeft() + 8 + local % 9 * 18;
-            int y = screen.getGuiTop() + 19 + local / 9 * 18;
+            int x = ((ContainerScreenAccessor) screen).jeiPlusPlus$getLeftPos() + 8 + local % 9 * 18;
+            int y = ((ContainerScreenAccessor) screen).jeiPlusPlus$getTopPos() + 19 + local / 9 * 18;
             drawHighlight(graphics, x, y, stack);
             if (stack.isEmpty()) {
                 FluidRecipeCompat.describeFluid(list.get(start + local))
@@ -1447,8 +1449,8 @@ final class StorageNetworkIntegration {
         int resourceRows = Math.max(0, visibleRows - pinRows);
         int maxCells = resourceRows * 9;
         int first = rowOffset * 9;
-        int x0 = screen.getGuiLeft() + 8;
-        int y0 = screen.getGuiTop() + 20 + pinRows * 18 - partialPixelOffset;
+        int x0 = ((ContainerScreenAccessor) screen).jeiPlusPlus$getLeftPos() + 8;
+        int y0 = ((ContainerScreenAccessor) screen).jeiPlusPlus$getTopPos() + 20 + pinRows * 18 - partialPixelOffset;
         for (int local = 0; local < maxCells && first + local < list.size(); local++) {
             int row = local / 9;
             int column = local % 9;
@@ -1475,8 +1477,8 @@ final class StorageNetworkIntegration {
             FluidRecipeCompat.describeFluid(key)
                 .ifPresent(info -> drawHighlightKey(
                     graphics,
-                    screen.getGuiLeft() + slot.x,
-                    screen.getGuiTop() + slot.y,
+                    ((ContainerScreenAccessor) screen).jeiPlusPlus$getLeftPos() + slot.x,
+                    ((ContainerScreenAccessor) screen).jeiPlusPlus$getTopPos() + slot.y,
                     info.key()
                 ));
         }
@@ -1494,8 +1496,8 @@ final class StorageNetworkIntegration {
             if (key == null) {
                 key = invokeNoArg(typed, "getKey");
             }
-            int x = screen.getGuiLeft() + slot.x;
-            int y = screen.getGuiTop() + slot.y;
+            int x = ((ContainerScreenAccessor) screen).jeiPlusPlus$getLeftPos() + slot.x;
+            int y = ((ContainerScreenAccessor) screen).jeiPlusPlus$getTopPos() + slot.y;
             ItemStack stack = storageItemStack(key);
             if (!stack.isEmpty()) {
                 drawHighlight(graphics, x, y, stack);
@@ -1525,8 +1527,8 @@ final class StorageNetworkIntegration {
                 }
                 drawHighlight(
                     graphics,
-                    screen.getGuiLeft() + slot.x,
-                    screen.getGuiTop() + slot.y,
+                    ((ContainerScreenAccessor) screen).jeiPlusPlus$getLeftPos() + slot.x,
+                    ((ContainerScreenAccessor) screen).jeiPlusPlus$getTopPos() + slot.y,
                     slot.getItem()
                 );
             }
@@ -1568,8 +1570,8 @@ final class StorageNetworkIntegration {
                 // translated by the container's GUI origin.
                 drawHighlight(
                     graphics,
-                    rect.getX() - screen.getGuiLeft() - 1,
-                    rect.getY() - screen.getGuiTop() - 1,
+                    rect.getX() - ((ContainerScreenAccessor) screen).jeiPlusPlus$getLeftPos() - 1,
+                    rect.getY() - ((ContainerScreenAccessor) screen).jeiPlusPlus$getTopPos() - 1,
                     stack,
                     200
                 );
@@ -1577,8 +1579,8 @@ final class StorageNetworkIntegration {
                     FluidRecipeCompat.describeFluid(instance)
                         .ifPresent(info -> drawHighlightKey(
                             graphics,
-                            rect.getX() - screen.getGuiLeft() - 1,
-                            rect.getY() - screen.getGuiTop() - 1,
+                            rect.getX() - ((ContainerScreenAccessor) screen).jeiPlusPlus$getLeftPos() - 1,
+                            rect.getY() - ((ContainerScreenAccessor) screen).jeiPlusPlus$getTopPos() - 1,
                             info.key(),
                             200
                         ));

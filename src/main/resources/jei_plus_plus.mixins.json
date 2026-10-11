@@ -3,10 +3,10 @@
   "minVersion": "0.8",
   "package": "com.lingmu0.JeiPlusPlusMod.mixin",
   "compatibilityLevel": "JAVA_25",
-  "refmap": "jei_plus_plus.refmap.json",
   "plugin": "com.lingmu0.JeiPlusPlusMod.mixin.JeiPlusPlusMixinConfigPlugin",
   "mixins": [],
   "client": [
+    "ContainerScreenAccessor",
     "RecipeGuiLayoutsMixin",
     "RecipeSlotClickTargetFactoryMixin",
     "RecipeLayoutWithButtonsMixin",

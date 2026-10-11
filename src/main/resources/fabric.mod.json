@@ -1,0 +1,41 @@
+{
+  "schemaVersion": 1,
+  "id": "jei_plus_plus",
+  "version": "${version}",
+  "name": "JEI++",
+  "description": "JEI navigation, grouping, recipe trees, and optional server-side AE2 pattern creation.",
+  "authors": [
+    "lingmu0"
+  ],
+  "contact": {
+    "homepage": "https://www.curseforge.com/minecraft/mc-mods/jei-plus-plus",
+    "sources": "https://github.com/lingmu0/jei-plus-plus",
+    "issues": "https://github.com/lingmu0/jei-plus-plus/issues"
+  },
+  "license": "All-Rights-Reserved",
+  "environment": "*",
+  "entrypoints": {
+    "main": [
+      "com.lingmu0.JeiPlusPlusMod.JeiPlusPlus"
+    ],
+    "client": [
+      "com.lingmu0.JeiPlusPlusMod.JeiPlusPlusClient"
+    ]
+  },
+  "mixins": [
+    {
+      "config": "jei_plus_plus.mixins.json",
+      "environment": "client"
+    }
+  ],
+  "depends": {
+    "fabricloader": ">=0.19.5",
+    "fabric-api": "*",
+    "minecraft": "26.1.2",
+    "java": ">=25"
+  },
+  "suggests": {
+    "jei": "*",
+    "ae2": "*"
+  }
+}

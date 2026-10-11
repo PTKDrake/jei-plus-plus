@@ -1,15 +1,15 @@
 package com.lingmu0.JeiPlusPlusMod;
 
-import net.minecraft.network.Connection;
-import net.minecraft.network.ConnectionProtocol;
 import net.minecraft.network.RegistryFriendlyByteBuf;
 import net.minecraft.network.codec.StreamCodec;
 import net.minecraft.network.protocol.common.custom.CustomPacketPayload;
 import net.minecraft.resources.Identifier;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.item.ItemStack;
-import net.neoforged.neoforge.network.event.RegisterPayloadHandlersEvent;
-import net.neoforged.neoforge.network.registration.NetworkRegistry;
+
+import net.fabricmc.fabric.api.networking.v1.ServerPlayNetworking;
+import net.fabricmc.fabric.api.networking.v1.ServerPlayConnectionEvents;
+import net.fabricmc.fabric.api.networking.v1.PayloadTypeRegistry;
 
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -17,7 +17,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 
-/** Optional play payload: old client-only features do not depend on this channel. */
+/** Optional Fabric play channel; client-only features do not depend on the server installing JEI++. */
 public final class Ae2PatternNetwork {
     private static final Identifier CHANNEL = Identifier.fromNamespaceAndPath(JeiPlusPlus.MODID, "ae2_patterns");
     private static final Map<UUID, Pending> PENDING = new HashMap<>();
@@ -25,15 +25,11 @@ public final class Ae2PatternNetwork {
 
     private Ae2PatternNetwork() {}
 
-    public static void register(RegisterPayloadHandlersEvent event) {
-        event.registrar("1").optional().playToServer(Request.TYPE, Request.CODEC,
-                (message, context) -> context.enqueueWork(() -> {
-                    if (context.player() instanceof ServerPlayer player) receive(player, message);
-                }));
-    }
-
-    public static boolean available(Connection connection) {
-        return connection != null && NetworkRegistry.hasChannel(connection, ConnectionProtocol.PLAY, CHANNEL);
+    public static void register() {
+        PayloadTypeRegistry.serverboundPlay().register(Request.TYPE, Request.CODEC);
+        ServerPlayNetworking.registerGlobalReceiver(Request.TYPE,
+            (request, context) -> context.server().execute(() -> receive(context.player(), request)));
+        ServerPlayConnectionEvents.DISCONNECT.register((handler, server) -> PENDING.remove(handler.player.getUUID()));
     }
 
     private static void receive(ServerPlayer player, Request request) {

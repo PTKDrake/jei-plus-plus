@@ -1,5 +1,23 @@
 # 更新日志 / Changelog
 
+## 1.0.7-26.1.2-fabric — 2026-10-11
+
+### 中文
+
+- 新增 Minecraft 26.1.2 的 Fabric 移植版本，保留对应分支的配方树、目录、分组、书签、分类弹窗、高亮与制作助手。
+- 使用 Fabric 网络和可选服务端 AE2 样板通道；服务器未安装 JEI++ 时，其他客户端功能仍可用。
+- 改用可热重载的原生 JSON 配置；分组、默认配方与配方树的存储位置保持不变。
+- 适配 Fabric 流体容器、JEI 流体类型及 AE2 库存的流体计量单位，保留 JEI 新旧签名选择逻辑。
+- 添加无游戏启动的配置回归、发布 JAR、客户端/服务端隔离与 JEI Mixin 目标检查。
+
+### English
+
+- Added the Minecraft 26.1.2 Fabric port, retaining recipe trees, ingredient directories, groups, bookmarks, the category picker, highlighting and crafting assistance.
+- Switched to Fabric networking with an optional server-side AE2 pattern channel; other client features remain usable without server-side JEI++.
+- Added native, live-reloading JSON settings; existing group, default-recipe and tree-session paths are unchanged.
+- Adapted Fabric fluid containers, JEI fluid ingredients and AE2 fluid inventory units while retaining version-selected JEI signatures.
+- Added non-launch config regression tests and release-JAR, sidedness and required JEI Mixin target checks. Optional mod integrations require a compatible Fabric release.
+
 ## 1.0.6 — 2026-09-27
 
 ### 中文

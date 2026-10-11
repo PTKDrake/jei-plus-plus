@@ -1,6 +1,20 @@
 # JEI++
 
-JEI++ 是一个仅客户端运行的 JEI 附属模组，为 JEI 增加配方目录、配方树、制作助手、流体支持、存储网络库存读取、创造物品分类栏和可折叠物品分组。它不添加方块、物品、配方或其他游戏内容。
+JEI++ 是一个客户端必需、服务端可选的 JEI 附属模组。仅客户端安装即可使用大部分功能；服务端也安装后可使用配方树一键制作 AE2 样板。它为 JEI 增加配方目录、配方树、制作助手、流体支持、存储网络库存读取、创造物品分类栏和可折叠物品分组。它不添加方块、物品、配方或其他游戏内容。
+
+## Fabric 移植 / Fabric port
+
+本分支为 Minecraft **26.1.2 Fabric**，版本 **1.0.7-26.1.2-fabric**。安装 Fabric Loader 0.19.5 或更新版本、对应 Minecraft 的 Fabric API，以及客户端 JEI。游戏需要 Java 25；构建源码统一使用 JDK 25。
+
+This branch targets **Minecraft 26.1.2 Fabric**, version **1.0.7-26.1.2-fabric**. Install Fabric Loader 0.19.5+, the matching Fabric API, and JEI on the client. The game requires Java 25; building from source uses JDK 25.
+
+- 三个 Fabric 分支：`codex/fabric-1.20.1`、`codex/fabric-1.21.1`、`codex/fabric-26.1.2`。
+- 配方树、目录、书签、物品分组、分类弹窗、高亮与自动合成保留；第三方集成仅在对应模组提供兼容 Fabric 构建时可用，不能使用 Forge/NeoForge JAR。
+- Fabric 原生客户端配置：`config/jei_plus_plus-client.json`，支持热重载；原有分组 JSON、默认配方与配方树存储路径不变。旧 TOML 不会被删除，但不会由 Fabric 读取。
+- AE2 批量样板需要服务端安装同版本 JEI++；未安装时显示不可用提示，不影响其他客户端功能。AE2 官方目前没有此 Minecraft 版本的 Fabric 构建，因此该版本暂时无法实际使用 AE2 集成；桥接代码保留，供未来兼容构建使用。
+- Build with `./gradlew build`; release JARs are in `build/libs/`. The build includes headless configuration regression checks and release-JAR/Mixin validation, without launching Minecraft.
+
+Optional integrations require a compatible Fabric release of the target mod. AE2 bulk patterns require JEI++ on the server; all other client features remain independent. AE2 does not currently publish a Fabric build for this Minecraft version, so AE2 integration is not presently usable here; the optional bridge is retained for future compatible builds. See the [official AE2 downloads](https://appliedenergistics.org/download). Fabric settings use `config/jei_plus_plus-client.json` with live reload. Existing group JSON, defaults and recipe-tree persistence paths are unchanged; old TOML files are preserved but are not read by Fabric.
 
 ## 中文说明
 
@@ -81,12 +95,12 @@ JEI++ 通过可选的客户端反射集成读取以下网络中的物品和流�
 - 配方候选、按配方键缓存的配方快照、配方状态、布局、背包/网络库存快照和流体访问器使用缓存，并按游戏刻和修订号进行刷新，避免每帧重复扫描。
 - 当前打开的容器物品会计入配方树库存，并按配方树状态高亮；分类选择弹窗打开时会屏蔽底层 JEI、背包和容器物品的 tooltip。
 - 递归候选搜索具备深度、访问数量和循环保护；递归只用于配方树和默认配方相关流程。
-- 兼容多个 JEI 配方布局、书签、物品列表和渲染路径，分别提供 Minecraft 1.20.1 Forge、1.21.1 NeoForge 与 26.1.2 NeoForge 分支。
+- 兼容多个 JEI 配方布局、书签、物品列表和渲染路径，分别提供 Minecraft 1.20.1、1.21.1 与 26.1.2 的 Fabric 分支。
 - JEI 重载、存档切换、终端切换、可选模组缺失或 API 变化时会安全清理和恢复运行时缓存。
 
 ## 配置
 
-客户端配置文件：`config/jei_plus_plus-client.toml`
+客户端配置文件：`config/jei_plus_plus-client.json`
 
 | 配置项 | 默认值 | 作用 |
 | --- | --- | --- |
@@ -145,9 +159,9 @@ JSON 分组示例：
 
 | 游戏版本 | 加载器 | Java | JEI 开发依赖 | 模组版本 |
 | --- | --- | --- | --- | --- |
-| 1.20.1 | Forge 47.4.22 | 17 | JEI 15.59.0.210 | 1.0.7-1.20.1 |
-| 1.21.1 | NeoForge 21.1.238 | 21 | JEI 19.54.0.429 | 1.0.7-1.21.1 |
-| 26.1.2 | NeoForge 26.1.2.111 | 25 | JEI 29.43.0.106 | 1.0.7-26.1.2 |
+| 1.20.1 | Fabric Loader 0.19.5+ | 17 | JEI 15.59.0.210 | 1.0.7-1.20.1-fabric |
+| 1.21.1 | Fabric Loader 0.19.5+ | 21 | JEI 19.54.0.429 | 1.0.7-1.21.1-fabric |
+| 26.1.2 | Fabric Loader 0.19.5+ | 25 | JEI 29.43.0.106 | 1.0.7-26.1.2-fabric |
 
 1.20.1 的声明兼容范围从 JEI 15.19.5.99 起，1.21.1 的声明兼容范围从 JEI 19.27.0 起，26.1.2 的声明兼容范围从 JEI 29.43.0.106 起；表中 JEI 版本是当前开发依赖。
 
@@ -155,7 +169,7 @@ JEI 是可选的客户端依赖；一般功能仅需客户端安装 JEI++。AE2 
 
 ## English
 
-JEI++ is a client-only JEI addon. It adds no blocks, items, recipes, or other gameplay content.
+JEI++ is required on the client and optional on the server. Most features work with only the client installed; installing it on the server as well enables one-click creation of AE2 patterns from the recipe tree.
 
 ### Recipe directories and navigation
 
@@ -233,9 +247,9 @@ The addon supports multiple JEI layout, bookmark, ingredient-list, and renderer 
 
 | Minecraft | Loader | Java | JEI development dependency | Mod version |
 | --- | --- | --- | --- | --- |
-| 1.20.1 | Forge 47.4.22 | 17 | JEI 15.59.0.210 | 1.0.7-1.20.1 |
-| 1.21.1 | NeoForge 21.1.238 | 21 | JEI 19.54.0.429 | 1.0.7-1.21.1 |
-| 26.1.2 | NeoForge 26.1.2.111 | 25 | JEI 29.43.0.106 | 1.0.7-26.1.2 |
+| 1.20.1 | Fabric Loader 0.19.5+ | 17 | JEI 15.59.0.210 | 1.0.7-1.20.1-fabric |
+| 1.21.1 | Fabric Loader 0.19.5+ | 21 | JEI 19.54.0.429 | 1.0.7-1.21.1-fabric |
+| 26.1.2 | Fabric Loader 0.19.5+ | 25 | JEI 29.43.0.106 | 1.0.7-26.1.2-fabric |
 
 The declared compatibility floor is JEI 15.19.5.99 for 1.20.1, JEI 19.27.0 for 1.21.1, and JEI 29.43.0.106 for 26.1.2; the table lists the current JEI development dependencies.
 

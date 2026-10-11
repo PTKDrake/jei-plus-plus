@@ -558,7 +558,7 @@ final class Ae2StorageIntegration {
             }
             Optional<FluidRecipeCompat.FluidInfo> info = FluidRecipeCompat.describeFluid(key);
             if (info.isPresent()) {
-                long fluidAmount = Math.max(amount, info.get().amount());
+                long fluidAmount = Math.max(amount / 81L, info.get().amount());
                 if (fluidAmount > 0) {
                     fluids.add(new StorageNetworkIntegration.StoredFluid(info.get().key(), fluidAmount));
                 }
@@ -666,6 +666,8 @@ final class Ae2StorageIntegration {
                     }
                 }
             }
+            // AE2's Fabric storage quantities are droplets (81 per mB).
+            amount /= 81L;
             if (info.get().amount() > 0) {
                 amount = Math.max(amount, info.get().amount());
             }
