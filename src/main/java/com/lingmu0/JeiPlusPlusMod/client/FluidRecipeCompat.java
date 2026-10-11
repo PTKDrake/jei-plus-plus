@@ -2,7 +2,11 @@ package com.lingmu0.JeiPlusPlusMod.client;
 
 import mezz.jei.api.ingredients.ITypedIngredient;
 import mezz.jei.api.constants.VanillaTypes;
-import mezz.jei.api.neoforge.NeoForgeTypes;
+import mezz.jei.api.fabric.constants.FabricTypes;
+import mezz.jei.api.fabric.ingredients.fluids.IJeiFluidIngredient;
+import net.fabricmc.fabric.api.transfer.v1.context.ContainerItemContext;
+import net.fabricmc.fabric.api.transfer.v1.fluid.FluidStorage;
+import net.fabricmc.fabric.api.transfer.v1.fluid.FluidVariant;
 import mezz.jei.api.ingredients.IIngredientRenderer;
 import mezz.jei.api.runtime.IIngredientManager;
 import mezz.jei.api.recipe.IFocus;
@@ -18,11 +22,6 @@ import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Items;
 import net.minecraft.world.level.material.Fluid;
-import net.neoforged.neoforge.capabilities.Capabilities;
-import net.neoforged.neoforge.fluids.FluidStack;
-import net.neoforged.neoforge.fluids.FluidType;
-import net.neoforged.neoforge.fluids.capability.IFluidHandler;
-import net.neoforged.neoforge.fluids.capability.IFluidHandlerItem;
 
 import java.lang.reflect.Method;
 import java.util.ArrayList;
@@ -45,7 +44,7 @@ import java.util.concurrent.ConcurrentHashMap;
  * work without a JEI++ server packet.</p>
  */
 final class FluidRecipeCompat {
-    private static final IdentityHashMap<ItemStack, FluidStack> DISPLAY_FLUIDS = new IdentityHashMap<>();
+    private static final IdentityHashMap<ItemStack, FabricFluidStack> DISPLAY_FLUIDS = new IdentityHashMap<>();
     private static final Map<String, ItemStack> FLUID_REPRESENTATIONS = new ConcurrentHashMap<>();
     private static final List<String> FLUID_ACCESSOR_NAMES = List.of(
         "getFluidStack", "getReadOnlyStack", "getRenderStack", "getStack",
@@ -76,7 +75,15 @@ final class FluidRecipeCompat {
         if (value == null || depth > 4 || !seen.add(value)) {
             return Optional.empty();
         }
-        if (value instanceof FluidStack stack) {
+        if (value instanceof IJeiFluidIngredient ingredient) {
+            return describeFluid(FabricFluidStack.from(ingredient), seen, depth + 1);
+        }
+        if (value instanceof FluidVariant variant) {
+            return Optional.of(new FluidInfo("fluid:" + BuiltInRegistries.FLUID.getKey(variant.getFluid()), 0L));
+        }
+        Optional<FabricFluidStack> foreign = FabricFluidStack.fromForeign(value);
+        if (foreign.isPresent()) return describeFluid(foreign.get(), seen, depth + 1);
+        if (value instanceof FabricFluidStack stack) {
             if (stack.isEmpty()) {
                 return Optional.empty();
             }
@@ -134,10 +141,10 @@ final class FluidRecipeCompat {
         FLUID_ACCESSORS.clear();
     }
 
-    static Optional<FluidStack> fluid(ITypedIngredient<?> ingredient) {
+    static Optional<FabricFluidStack> fluid(ITypedIngredient<?> ingredient) {
         return ingredient == null
             ? Optional.empty()
-            : ingredient.getIngredient(NeoForgeTypes.FLUID_STACK);
+            : ingredient.getIngredient(FabricTypes.FLUID_STACK).map(FabricFluidStack::from);
     }
 
     static Optional<ITypedIngredient<?>> scaled(
@@ -145,16 +152,12 @@ final class FluidRecipeCompat {
         int batches,
         IIngredientManager manager
     ) {
-        Optional<FluidStack> value = fluid(ingredient);
+        Optional<FabricFluidStack> value = fluid(ingredient);
         if (value.isEmpty() || batches <= 1) {
             return Optional.ofNullable(ingredient);
         }
-        long amount = (long) value.get().getAmount() * batches;
-        if (amount > Integer.MAX_VALUE) {
-            return Optional.of(ingredient);
-        }
-        FluidStack copy = value.get().copyWithAmount((int) amount);
-        return manager.createTypedIngredient(NeoForgeTypes.FLUID_STACK, copy)
+        FabricFluidStack copy = value.get().scale(batches);
+        return manager.createTypedIngredient(FabricTypes.FLUID_STACK, copy.ingredient())
             .map(stack -> (ITypedIngredient<?>) stack);
     }
 
@@ -164,7 +167,7 @@ final class FluidRecipeCompat {
      * containers needed for one transfer batch and are intentionally copied so
      * JEI cannot mutate the real inventory stack while validating a transfer.
      */
-    static List<ItemStack> matchingContainers(Player player, FluidStack required, int batches) {
+    static List<ItemStack> matchingContainers(Player player, FabricFluidStack required, int batches) {
         if (player == null || required == null || required.isEmpty()) {
             return List.of();
         }
@@ -173,13 +176,9 @@ final class FluidRecipeCompat {
             if (inventoryStack.isEmpty()) {
                 continue;
             }
-            IFluidHandlerItem handler = inventoryStack.getCapability(Capabilities.FluidHandler.ITEM);
-            if (handler == null) {
-                continue;
-            }
-            FluidStack contained = handler.drain(Integer.MAX_VALUE, IFluidHandler.FluidAction.SIMULATE);
-            if (contained == null || contained.isEmpty()
-                || !FluidStack.isSameFluidSameComponents(contained, required)) {
+            FabricFluidStack contained = fluidFromItem(inventoryStack).orElse(FabricFluidStack.EMPTY);
+            if (contained.isEmpty()
+                || !FabricFluidStack.isSameFluidSameComponents(contained, required)) {
                 continue;
             }
             int perContainer = Math.max(1, contained.getAmount());
@@ -204,7 +203,7 @@ final class FluidRecipeCompat {
         return fluid(ingredient).map(value -> {
             // The representative is an internal bridge for item-slot
             // transfer only.  The tree renderer uses the registered
-            // FluidStack directly, so the bucket is never shown as the node.
+            // FabricFluidStack directly, so the bucket is never shown as the node.
             var bucketItem = value.getFluid().getBucket();
             ItemStack bucket = new ItemStack(bucketItem == Items.AIR ? Items.BUCKET : bucketItem);
             // 1000 mB is one bucket; partial buckets require one container.
@@ -227,46 +226,45 @@ final class FluidRecipeCompat {
         }).filter(stack -> !stack.isEmpty());
     }
 
-    private static void registerDisplay(ItemStack stack, FluidStack fluid) {
+    private static void registerDisplay(ItemStack stack, FabricFluidStack fluid) {
         if (stack == null || stack.isEmpty() || fluid == null || fluid.isEmpty()) {
             return;
         }
         DISPLAY_FLUIDS.put(stack, fluid.copy());
     }
 
-    static Optional<FluidStack> displayFluid(ItemStack stack) {
+    static Optional<FabricFluidStack> displayFluid(ItemStack stack) {
         if (stack == null || stack.isEmpty()) {
             return Optional.empty();
         }
-        FluidStack fluid = DISPLAY_FLUIDS.get(stack);
+        FabricFluidStack fluid = DISPLAY_FLUIDS.get(stack);
         if (fluid != null) {
             return Optional.of(fluid.copy());
         }
-        // Forge fluid handlers are commonly implemented for a single item.
-        // Passing a stack with count > 1 can make the capability return an
-        // empty handler even though every item carries the same fluid. Probe a
-        // one-item copy for identity/highlight checks; callers that need the
-        // total amount multiply the returned amount by the original count.
-        ItemStack probe = stack;
-        if (stack.getCount() > 1) {
-            probe = stack.copy();
-            probe.setCount(1);
-        }
-        if (probe.getCapability(Capabilities.FluidHandler.ITEM) instanceof IFluidHandlerItem handler) {
-            FluidStack contained = handler.drain(Integer.MAX_VALUE, IFluidHandler.FluidAction.SIMULATE);
-            if (contained != null && !contained.isEmpty()) {
-                return Optional.of(contained.copy());
+        return fluidFromItem(stack);
+    }
+
+    private static Optional<FabricFluidStack> fluidFromItem(ItemStack stack) {
+        if (stack == null || stack.isEmpty()) return Optional.empty();
+        ItemStack probe = stack.copy();
+        probe.setCount(1);
+        var storage = ContainerItemContext.withConstant(probe).find(FluidStorage.ITEM);
+        if (storage != null) {
+            for (var view : storage) {
+                if (!view.getResource().isBlank() && view.getAmount() > 0) {
+                    return Optional.of(new FabricFluidStack(view.getResource(), view.getAmount()));
+                }
             }
         }
         return Optional.empty();
     }
 
     /** Fluid explicitly represented by a recipe-tree synthetic stack. */
-    static Optional<FluidStack> treeFluid(ItemStack stack) {
+    static Optional<FabricFluidStack> treeFluid(ItemStack stack) {
         if (stack == null || stack.isEmpty()) {
             return Optional.empty();
         }
-        FluidStack fluid = DISPLAY_FLUIDS.get(stack);
+        FabricFluidStack fluid = DISPLAY_FLUIDS.get(stack);
         return fluid == null ? Optional.empty() : Optional.of(fluid.copy());
     }
 
@@ -274,7 +272,7 @@ final class FluidRecipeCompat {
         return treeFluid(stack).map(value -> fluidKey(value));
     }
 
-    static String fluidKey(FluidStack value) {
+    static String fluidKey(FabricFluidStack value) {
         return value == null || value.isEmpty()
             ? ""
             : "fluid:" + net.minecraft.core.registries.BuiltInRegistries.FLUID.getKey(value.getFluid());
@@ -290,7 +288,7 @@ final class FluidRecipeCompat {
 
     /** Creates a fluid-key alias for a real filled container in inventory. */
     static Optional<ItemStack> fluidRepresentation(ItemStack stack) {
-        Optional<FluidStack> value = displayFluid(stack);
+        Optional<FabricFluidStack> value = displayFluid(stack);
         if (value.isEmpty() || fluidKey(stack).isPresent()) {
             return Optional.empty();
         }
@@ -301,9 +299,9 @@ final class FluidRecipeCompat {
         if (manager == null || stack == null || stack.isEmpty()) {
             return Optional.empty();
         }
-        Optional<FluidStack> fluid = treeFluid(stack);
+        Optional<FabricFluidStack> fluid = treeFluid(stack);
         if (fluid.isPresent()) {
-            return manager.createTypedIngredient(NeoForgeTypes.FLUID_STACK, fluid.get())
+            return manager.createTypedIngredient(FabricTypes.FLUID_STACK, fluid.get().ingredient())
                 .map(value -> (ITypedIngredient<?>) value);
         }
         return manager.createTypedIngredient(VanillaTypes.ITEM_STACK, stack)
@@ -311,7 +309,7 @@ final class FluidRecipeCompat {
     }
 
     static long containerCount(long millibuckets) {
-        return Math.max(1, (millibuckets + FluidType.BUCKET_VOLUME - 1) / FluidType.BUCKET_VOLUME);
+        return Math.max(1, (millibuckets + 1000 - 1) / 1000);
     }
 
     /** Returns the actual fluid amount represented by every item in a stack. */
@@ -319,7 +317,7 @@ final class FluidRecipeCompat {
         if (stack == null || stack.isEmpty()) {
             return 0L;
         }
-        Optional<FluidStack> fluid = displayFluid(stack);
+        Optional<FabricFluidStack> fluid = displayFluid(stack);
         if (fluid.isEmpty()) {
             return 0L;
         }
@@ -347,11 +345,11 @@ final class FluidRecipeCompat {
             return Optional.empty();
         }
         int safeAmount = (int) Math.min(Integer.MAX_VALUE, amount);
-        FluidStack value = new FluidStack(fluid, safeAmount);
+        FabricFluidStack value = new FabricFluidStack(fluid, safeAmount);
         return Optional.of(cachedRepresentation(value));
     }
 
-    private static ItemStack cachedRepresentation(FluidStack value) {
+    private static ItemStack cachedRepresentation(FabricFluidStack value) {
         String cacheKey = fluidKey(value) + "|" + value.getAmount();
         ItemStack prototype = FLUID_REPRESENTATIONS.computeIfAbsent(cacheKey, ignored -> {
             var bucketItem = value.getFluid().getBucket();
@@ -372,7 +370,7 @@ final class FluidRecipeCompat {
         if (stack == null || stack.isEmpty() || units <= 0) {
             return 0;
         }
-        Optional<FluidStack> value = displayFluid(stack);
+        Optional<FabricFluidStack> value = displayFluid(stack);
         if (value.isEmpty()) {
             return 0;
         }
@@ -392,22 +390,22 @@ final class FluidRecipeCompat {
     /** Formats fluid quantities using JEI-style mB below one bucket and B above it. */
     static String formatAmount(long millibuckets) {
         long value = Math.max(0, millibuckets);
-        if (value < FluidType.BUCKET_VOLUME) {
+        if (value < 1000) {
             return value + "mB";
         }
-        return String.format(Locale.ROOT, "%.1fB", value / (double) FluidType.BUCKET_VOLUME);
+        return String.format(Locale.ROOT, "%.1fB", value / (double) 1000);
     }
 
-    static Optional<IFocus<FluidStack>> createOutputFocus(IJeiRuntime runtime, ItemStack stack) {
-        Optional<FluidStack> value = treeFluid(stack);
+    static Optional<IFocus<IJeiFluidIngredient>> createOutputFocus(IJeiRuntime runtime, ItemStack stack) {
+        Optional<FabricFluidStack> value = treeFluid(stack);
         if (runtime == null || value.isEmpty()) {
             return Optional.empty();
         }
         try {
             return Optional.of(runtime.getJeiHelpers().getFocusFactory().createFocus(
                 RecipeIngredientRole.OUTPUT,
-                NeoForgeTypes.FLUID_STACK,
-                value.get()
+                FabricTypes.FLUID_STACK,
+                value.get().ingredient()
             ));
         } catch (IllegalArgumentException ignored) {
             return Optional.empty();
@@ -417,7 +415,7 @@ final class FluidRecipeCompat {
     static ItemStack copyWithDisplay(ItemStack stack) {
         ItemStack copy = stack == null ? ItemStack.EMPTY : stack.copy();
         if (stack != null) {
-            FluidStack fluid = DISPLAY_FLUIDS.get(stack);
+            FabricFluidStack fluid = DISPLAY_FLUIDS.get(stack);
             if (fluid != null) {
                 DISPLAY_FLUIDS.put(copy, fluid.copy());
             }
@@ -425,9 +423,9 @@ final class FluidRecipeCompat {
         return copy;
     }
 
-    /** Draws a registered FluidStack and returns whether the stack was fluid-backed. */
+    /** Draws a registered FabricFluidStack and returns whether the stack was fluid-backed. */
     static boolean render(GuiGraphics graphics, ItemStack stack, int x, int y) {
-        Optional<FluidStack> value = treeFluid(stack);
+        Optional<FabricFluidStack> value = treeFluid(stack);
         if (value.isEmpty()) {
             return false;
         }
@@ -437,14 +435,14 @@ final class FluidRecipeCompat {
         if (manager == null) {
             return false;
         }
-        IIngredientRenderer<FluidStack> renderer = manager.getIngredientRenderer(NeoForgeTypes.FLUID_STACK);
-        renderer.render(graphics, value.get(), x, y);
+        IIngredientRenderer<IJeiFluidIngredient> renderer = manager.getIngredientRenderer(FabricTypes.FLUID_STACK);
+        renderer.render(graphics, value.get().ingredient(), x, y);
         return true;
     }
 
     /** Draws the JEI fluid tooltip for a tree node or candidate choice. */
     static boolean renderTooltip(GuiGraphics graphics, ItemStack stack, int mouseX, int mouseY) {
-        Optional<FluidStack> value = treeFluid(stack);
+        Optional<FabricFluidStack> value = treeFluid(stack);
         if (value.isEmpty()) {
             return false;
         }
@@ -454,8 +452,8 @@ final class FluidRecipeCompat {
         if (manager == null) {
             return false;
         }
-        IIngredientRenderer<FluidStack> renderer = manager.getIngredientRenderer(NeoForgeTypes.FLUID_STACK);
-        List<Component> tooltip = renderer.getTooltip(value.get(), TooltipFlag.Default.NORMAL);
+        IIngredientRenderer<IJeiFluidIngredient> renderer = manager.getIngredientRenderer(FabricTypes.FLUID_STACK);
+        List<Component> tooltip = renderer.getTooltip(value.get().ingredient(), TooltipFlag.Default.NORMAL);
         graphics.renderTooltip(Minecraft.getInstance().font, tooltip, Optional.empty(), mouseX, mouseY);
         return true;
     }

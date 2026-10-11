@@ -17,7 +17,7 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 )
 public abstract class IntegratedTerminalScreenMixin {
     @Inject(
-        method = {"renderLabels", "m_280003_"},
+        method = {"renderLabels", "method_2388"},
         at = @At("HEAD"),
         remap = false,
         require = 0

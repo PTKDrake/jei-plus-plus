@@ -1,114 +1,54 @@
 plugins {
-    id 'java-library'
+    id 'net.fabricmc.fabric-loom-remap' version '1.16.3'
     id 'maven-publish'
-    id 'net.neoforged.gradle.userdev' version '7.0.145'
 }
 
 version = mod_version
 group = mod_group_id
-
-base {
-    archivesName = mod_id
-}
-
-def bootstrapIgnoreList = 'bootstraplauncher-2.0.2.jar,securejarhandler-3.0.8.jar,JarJarFileSystems-0.4.1.jar,asm-9.5.jar,asm-commons-9.5.jar,asm-analysis-9.5.jar,asm-tree-9.5.jar,asm-util-9.5.jar,asm-9.8.jar,asm-commons-9.8.jar,asm-analysis-9.8.jar,asm-tree-9.8.jar,asm-util-9.8.jar,mixinextras-neoforge-0.5.3.jar,client-extra,neoforge-'
-
-java.toolchain.languageVersion = JavaLanguageVersion.of(21)
-
-sourceSets.main.resources {
-    srcDir('src/generated/resources')
-}
-
-// NeoGradle's run definitions are also consumed by IntelliJ's Gradle sync to
-// create the *IdeBeforeRun tasks used by NeoForge launch configurations.
-runs {
-    configureEach {
-        systemProperty 'forge.logging.markers', 'REGISTRIES'
-        systemProperty 'forge.logging.console.level', 'debug'
-        // NeoForge 21.1.x places ASM 9.8 on the BootstrapLauncher module path,
-        // while the Minecraft library manifest still contains older ASM 9.5
-        // copies.  Leaving those old copies on the legacy class path makes
-        // both Gradle runClient and IntelliJ's generated launch fail with a
-        // duplicate-module error before the game starts.
-        systemProperty 'ignoreList', bootstrapIgnoreList
-        workingDirectory project.layout.projectDirectory.dir('runs').dir(name)
-        modSource project.sourceSets.main
-    }
-
-    client {
-        systemProperty 'neoforge.enabledGameTestNamespaces', project.mod_id
-    }
-
-    server {
-        systemProperty 'neoforge.enabledGameTestNamespaces', project.mod_id
-        programArgument '--nogui'
-    }
-
-    gameTestServer {
-        systemProperty 'neoforge.enabledGameTestNamespaces', project.mod_id
-    }
-
-    data {
-        programArguments '--mod', project.mod_id, '--all', '--output',
-                file('src/generated/resources').getAbsolutePath(), '--existing',
-                file('src/main/resources').getAbsolutePath()
-    }
-}
-
-// Userdev adds its default ignore list during its after-evaluate hook. Apply
-// the corrected list after that hook as well, so Gradle and regenerated IDEA
-// configurations receive the same BootstrapLauncher arguments.
-afterEvaluate {
-    runs.configureEach {
-        systemProperty 'ignoreList', bootstrapIgnoreList
-    }
-}
+base { archivesName = mod_id }
 
 repositories {
     maven { url = 'https://maven.blamejared.com' }
 }
 
-configurations {
-    runtimeClasspath.extendsFrom localRuntime
-}
-
 dependencies {
-    implementation "net.neoforged:neoforge:${neo_version}"
-    // The userdev artifact intentionally omits NeoForge's runtime-only config
-    // helpers; keep the universal jar compile-only for the config spec API.
-    compileOnly "net.neoforged:neoforge:${neo_version}:universal"
-
-    // The full JEI jar supplies the public API and the isolated client mixin targets.
-    compileOnly "mezz.jei:jei-1.21.1-neoforge:${jei_version}"
-    localRuntime "mezz.jei:jei-1.21.1-neoforge:${jei_version}"
+    minecraft "com.mojang:minecraft:${minecraft_version}"
+    mappings loom.officialMojangMappings()
+    modImplementation "net.fabricmc:fabric-loader:${loader_version}"
+    modImplementation "net.fabricmc.fabric-api:fabric-api:${fabric_version}"
+    modCompileOnly "mezz.jei:jei-${minecraft_version}-fabric:${jei_version}"
+    modLocalRuntime "mezz.jei:jei-${minecraft_version}-fabric:${jei_version}"
 }
 
-tasks.withType(ProcessResources).configureEach {
-    var replaceProperties = [
-        minecraft_version: minecraft_version,
-        minecraft_version_range: minecraft_version_range,
-        neo_version: neo_version,
-        neo_version_range: neo_version_range,
-        jei_version: jei_version,
-        jei_version_range: jei_version_range,
-        loader_version_range: loader_version_range,
-        mod_id: mod_id,
-        mod_name: mod_name,
-        mod_license: mod_license,
-        mod_version: mod_version,
-        mod_authors: mod_authors,
-        mod_description: mod_description
-    ]
-    inputs.properties replaceProperties
-    filesMatching(['META-INF/neoforge.mods.toml', 'pack.mcmeta']) {
-        expand replaceProperties
+loom {
+    mixin {
+        useLegacyMixinAp = true
+        defaultRefmapName = 'jei_plus_plus.refmap.json'
     }
 }
 
+processResources {
+    inputs.property 'version', project.version
+    filesMatching('fabric.mod.json') { expand version: project.version }
+}
+
+java {
+    toolchain.languageVersion = JavaLanguageVersion.of(25)
+    sourceCompatibility = JavaVersion.toVersion(21)
+    targetCompatibility = JavaVersion.toVersion(21)
+    withSourcesJar()
+}
 tasks.withType(JavaCompile).configureEach {
     options.encoding = 'UTF-8'
-    // NeoGradle 7.0.x exposes the named, merged Minecraft jar through the
-    // neoForm rename task rather than the default raw userdev artifact.
-    dependsOn tasks.named('neoFormRename')
-    classpath += files(tasks.named('neoFormRename'))
+    options.release = 21
 }
+
+tasks.register('testFabricConfig', JavaExec) {
+    dependsOn tasks.named('testClasses')
+    classpath = sourceSets.test.runtimeClasspath
+    mainClass = 'com.lingmu0.JeiPlusPlusMod.FabricConfigSpecTest'
+    workingDir = projectDir
+}
+// Regression checks are an ordinary Java process and do not bootstrap Minecraft.
+tasks.named('test') { enabled = false }
+apply from: 'gradle/verify-fabric.gradle'

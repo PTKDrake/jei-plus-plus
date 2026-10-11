@@ -1219,7 +1219,7 @@ public final class RecipeTreeTransfer {
                     if (itemStack.isEmpty()) {
                         // Keep the original JEI ingredient so custom handlers
                         // that expose a real tank can consume the FluidStack.
-                        Optional<net.neoforged.neoforge.fluids.FluidStack> fluid =
+                        Optional<FabricFluidStack> fluid =
                             FluidRecipeCompat.fluid(ingredient);
                         if (fluid.isPresent()) {
                             String fluidKey = FluidRecipeCompat.fluidKey(fluid.get());

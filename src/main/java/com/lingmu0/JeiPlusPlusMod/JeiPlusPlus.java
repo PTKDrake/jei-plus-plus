@@ -1,15 +1,13 @@
 package com.lingmu0.JeiPlusPlusMod;
 
-import net.neoforged.fml.common.Mod;
-import net.neoforged.fml.ModLoadingContext;
+import net.fabricmc.api.ModInitializer;
 
-/** Common entry point; the AE2 pattern channel is optional for client-only use. */
-@Mod(JeiPlusPlus.MODID)
-public final class JeiPlusPlus {
+/** Common entry point, safe to load without JEI or any client classes. */
+public final class JeiPlusPlus implements ModInitializer {
     public static final String MODID = "jei_plus_plus";
 
-    public JeiPlusPlus() {
-        JeiPlusPlusConfig.register(ModLoadingContext.get().getActiveContainer());
-        ModLoadingContext.get().getActiveContainer().getEventBus().addListener(Ae2PatternNetwork::register);
+    @Override
+    public void onInitialize() {
+        Ae2PatternNetwork.register();
     }
 }

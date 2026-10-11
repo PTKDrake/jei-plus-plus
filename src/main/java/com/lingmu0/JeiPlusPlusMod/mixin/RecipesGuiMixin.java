@@ -17,7 +17,7 @@ public abstract class RecipesGuiMixin {
     @Shadow @Final private IconButton nextRecipeCategory;
     @Shadow @Final private IconButton previousRecipeCategory;
 
-    @Inject(method = "mouseScrolled", at = @At("HEAD"), cancellable = true, remap = false)
+    @Inject(method = {"mouseScrolled", "method_25401"}, at = @At("HEAD"), cancellable = true, remap = false)
     private void jeiPlusPlus$scrollNavigation(
         double mouseX,
         double mouseY,

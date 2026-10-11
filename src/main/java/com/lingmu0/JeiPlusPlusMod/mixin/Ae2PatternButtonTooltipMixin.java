@@ -13,7 +13,10 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 @Mixin(targets = "appeng.client.gui.WidgetContainer", remap = false)
 public abstract class Ae2PatternButtonTooltipMixin {
     @Inject(
-        method = "add(Ljava/lang/String;Lnet/minecraft/client/gui/components/AbstractWidget;)V",
+        method = {
+            "add(Ljava/lang/String;Lnet/minecraft/client/gui/components/AbstractWidget;)V",
+            "add(Ljava/lang/String;Lnet/minecraft/class_339;)V"
+        },
         at = @At("HEAD"),
         remap = false,
         require = 0

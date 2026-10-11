@@ -2,11 +2,11 @@ package com.lingmu0.JeiPlusPlusMod.client;
 
 import mezz.jei.api.constants.VanillaTypes;
 import mezz.jei.api.ingredients.ITypedIngredient;
-import mezz.jei.api.neoforge.NeoForgeTypes;
+import mezz.jei.api.fabric.constants.FabricTypes;
 import mezz.jei.api.runtime.IIngredientManager;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.crafting.Ingredient;
-import net.neoforged.neoforge.fluids.FluidStack;
+import net.minecraft.world.item.crafting.Recipe;
 
 import java.lang.reflect.Array;
 import java.lang.reflect.Method;
@@ -60,8 +60,9 @@ final class SequencedAssemblyCompat {
                 // name as m_7527_.  The readable name is available in some
                 // dev/runtime mappings, so accept both forms instead of
                 // silently dropping every repeated item ingredient.
-                List<?> itemIngredients = asList(
-                    invokeNoArgAny(stepRecipe, "getIngredients", "m_7527_").orElse(null)
+                List<?> itemIngredients = stepRecipe instanceof Recipe<?> vanillaRecipe
+                    ? List.copyOf(vanillaRecipe.getIngredients()) : asList(
+                    invokeNoArgAny(stepRecipe, "getIngredients", "m_7527_", "method_8117").orElse(null)
                 );
                 // The first item is the item carried through the assembly line.
                 // Create's category displays it once as the assembly input; only
@@ -148,10 +149,11 @@ final class SequencedAssemblyCompat {
         );
         List<ITypedIngredient<?>> result = new ArrayList<>();
         for (Object candidate : fluids) {
-            if (!(candidate instanceof FluidStack stack) || stack.isEmpty()) {
+            var converted = FabricFluidStack.fromForeign(candidate);
+            if (converted.isEmpty() || converted.get().isEmpty()) {
                 continue;
             }
-            ingredientManager.createTypedIngredient(NeoForgeTypes.FLUID_STACK, stack.copy())
+            ingredientManager.createTypedIngredient(FabricTypes.FLUID_STACK, converted.get().ingredient())
                 .ifPresent(typed -> result.add((ITypedIngredient<?>) typed));
         }
         return List.copyOf(result);
